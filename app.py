@@ -1,148 +1,230 @@
 import streamlit as st
-import yfinance as yf
-import requests
-import datetime
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-from keras.models import Sequential
-from keras.layers import Dense, LSTM
-from openai import OpenAI
-import plotly.graph_objects as go
-import plotly.graph_objects as go
-from dotenv import load_dotenv
+import base64
 import os
 
-# Load API keys from .env
-load_dotenv()
-openai_key = os.getenv("OPENAI_API_KEY")
-news_api_key = os.getenv("NEWS_API_KEY")
-client = OpenAI(api_key=openai_key)
+def get_image_base64(file_path):
+    with open(file_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
-st.title("Stock Information, News & Price Prediction")
-ticker = st.text_input("Enter Stock Ticker", value="AAPL")
+st.set_page_config(
+    page_title="StockSense AI",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-if ticker:
-    today = datetime.date.today()
-    from_date = today - datetime.timedelta(days=30)
+image_path = os.path.join("images", "landing_page.png")
+image_base64 = get_image_base64(image_path)
 
-    # --- Company Info ---
-    stock = yf.Ticker(ticker)
-    stock_info = stock.info
-    st.subheader("Company Info")
-    metrics = {
-        "Name": stock_info.get("longName", "N/A"),
-        "Sector": stock_info.get("sector", "N/A"),
-        "Market Cap": stock_info.get("marketCap", "N/A"),
-        "PE Ratio": stock_info.get("trailingPE", "N/A"),
-        "EPS": stock_info.get("trailingEps", "N/A"),
-        "Dividend Yield": stock_info.get("dividendYield", "N/A"),
-        "ROE": stock_info.get("returnOnEquity", "N/A"),
-        "Beta": stock_info.get("beta", "N/A")
-    }
-    for key, value in metrics.items():
-        st.write(f"**{key}:** {value}")
+# ---------- CSS ----------
+st.markdown(f"""
+<style>
+    html {{
+        scroll-behavior: smooth;
+    }}
+    body {{
+        background: linear-gradient(135deg, #f0f4ff, #eef1f7);
+        font-family: 'Segoe UI', sans-serif;
+        color: #1e293b;
+        margin: 0;
+        padding: 0;
+    }}
+    .navbar {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 2.5rem;
+        background: rgba(255, 255, 255, 0.9);
+        border-bottom: 1px solid #cbd5e1;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }}
+    .nav-links a {{
+        margin: 0 1.2rem;
+        text-decoration: none;
+        font-weight: 500;
+        color: #1e293b;
+        transition: 0.25s;
+    }}
+    .nav-links a:hover {{
+        color: #6366f1;
+    }}
+    .hero {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6rem 3rem 4rem 3rem;
+        background: linear-gradient(135deg, #edf0fc, #f7f9fe);
+        border-radius: 20px;
+        margin: 3rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    }}
+    .hero-title {{
+        font-size: 3.2rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 1.2rem;
+        line-height: 1.25;
+    }}
+    .hero-desc {{
+        font-size: 1.25rem;
+        margin-bottom: 2rem;
+        color: #475569;
+    }}
+    .hero-buttons a {{
+        padding: 0.9rem 1.6rem;
+        margin-right: 1rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        text-decoration: none;
+        transition: 0.25s;
+    }}
+    .btn-primary {{
+        background: linear-gradient(to right, #4f46e5, #6366f1);
+        color: white !important;
+        border: none;
+    }}
+    .btn-primary:hover {{
+        background: linear-gradient(to right, #4338ca, #4f46e5);
+        transform: scale(1.05);
+        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    }}
+    .btn-outline {{
+        border: 2px solid #6366f1;
+        color: #6366f1;
+        background: transparent;
+    }}
+    .btn-outline:hover {{
+        background-color: #e0e7ff;
+    }}
+    .features {{
+        text-align: center;
+        padding: 3.5rem 2rem;
+    }}
+    .features h2 {{
+        font-size: 2.4rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 1rem;
+    }}
+    .feature-grid {{
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 2rem;
+    }}
+    .card {{
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        padding: 1.8rem;
+        border-radius: 16px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        width: 280px;
+        text-align: left;
+        transition: all 0.3s ease-in-out;
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+    }}
+    .card:hover {{
+        transform: translateY(-6px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+    }}
+    .card h4 {{
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+        color: #1e293b;
+    }}
+</style>
+""", unsafe_allow_html=True)
 
-    # --- News Fetch ---
-    url = (
-        f"https://newsapi.org/v2/everything?q={ticker}&from={from_date}&to={today}"
-        f"&sortBy=publishedAt&language=en&apiKey={news_api_key}"
-    )
-    response = requests.get(url)
+# ---------- NAVBAR ----------
+st.markdown("""
+<div class="navbar">
+    <div style="font-weight:bold; font-size: 1.5rem; color:#0d6efd;">StockSense <span style="font-size: 0.8rem; background: #e0e7ff; padding: 2px 6px; border-radius: 5px;">AI</span></div>
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/Dashboard">Dashboard</a>
+        <a href="/Watchlist">Watchlist</a>
+        <a href="/About">About</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-    if response.status_code == 200:
-        articles = response.json().get("articles", [])
-        st.subheader("Latest News Articles")
-        for article in articles[:5]:
-            st.markdown(f"**{article['title']}**")
-            st.write(article['description'])
-            st.write(article['url'])
-            st.write("---")
+# ---------- HERO ----------
+st.markdown(f"""
+<div class="hero">
+    <div class="hero-text">
+        <div class="hero-title">AI-Powered Stock<br>Analysis & Investment Insights</div>
+        <div class="hero-desc">
+            Make smarter investment decisions with our advanced<br>
+            AI stock predictions and sentiment analysis of market news.
+        </div>
+        <div class="hero-buttons">
+            <a href="#features" class="btn-primary">Analyze Stocks</a>
+            <a href="/About" class="btn-outline">Learn More</a>
+        </div>
+    </div>
+    <div>
+        <img src="data:image/png;base64,{image_base64}" 
+             style="border-radius: 12px; box-shadow: 0px 8px 20px rgba(0,0,0,0.05); max-width: 400px;" />
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-        # --- OpenAI News Summary ---
-        st.subheader("AI-generated News Summary")
-        combined_text = "\n\n".join(
-            f"{article.get('title', '')}\n{article.get('description', '')}" for article in articles[:5]
-        )
-        if combined_text.strip():
-            prompt = f"Summarize the following news about {ticker}:\n\n{combined_text}"
-            try:
-                summary_response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                summary = summary_response.choices[0].message.content
-                st.write(summary)
-            except Exception as e:
-                st.error(f"OpenAI API Error: {e}")
-        else:
-            st.info("No content available for summarization.")
-    else:
-        st.error("Failed to fetch news.")
-    
-        # --- Historical Stock Price Chart ---
-    st.subheader("Historical Stock Price Chart")
+# ---------- FEATURES ----------
+st.markdown("""
+<div id="features" class="features">
+    <h2>Key Features</h2>
+    <p>Explore the four core pillars of our AI-powered investment assistant:</p>
+    <div class="feature-grid">
+""", unsafe_allow_html=True)
 
-    # Timeframe selection
-    chart_period = st.radio(
-        "Select Timeframe for Graph",
-        ["1y", "2y", "5y", "10y"],
-        index=3,
-        horizontal=True
-    )
+col1, col2, col3, col4 = st.columns(4)
 
-    # Get closing price data only
-    chart_data = yf.download(ticker, period=chart_period, interval="1d")[['Close']].dropna()
+with col1:
+    st.markdown("""
+    <div class="card">
+        <h4>🧠 Market Intelligence</h4>
+        <p>Stay informed with AI-curated summaries of real-time financial news and market sentiment, all tailored to your selected stock.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Explore →", key="market"):
+        st.switch_page("pages/2_news_summary.py")
 
-    # Display line chart
-    if not chart_data.empty:
-        st.line_chart(chart_data['Close'])
-    else:
-        st.warning("No data available for the selected period.")
-    
+with col2:
+    st.markdown("""
+    <div class="card">
+        <h4>📊 Financial Snapshot</h4>
+        <p>Quickly access a company’s most critical metrics, from P/E ratio to market cap, distilled for fast, smart decisions.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Explore →", key="snapshot"):
+        st.switch_page("pages/1_company_info.py")
 
-        # --- LSTM-Based Stock Price Prediction (Notebook-Aligned) ---
-    st.subheader("LSTM-Based Stock Price Prediction")
+with col3:
+    st.markdown("""
+    <div class="card">
+        <h4>🔮 AI Price Forecast</h4>
+        <p>Powered by a decade of data and deep learning, our LSTM model forecasts tomorrow’s closing price with precision.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Explore →", key="forecast"):
+        st.switch_page("pages/4_lstm_model.py")
 
-    df = yf.download(ticker, period="10y", interval="1d")[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
+with col4:
+    st.markdown("""
+    <div class="card">
+        <h4>📈 Interactive Charting</h4>
+        <p>Explore historical price trends with smooth, zoomable charts — from 1-year insights to 10-year performance views.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Explore →", key="charting"):
+        st.switch_page("pages/3_Historical_Chart.py")
 
-    if df.empty:
-        st.warning("No valid OHLCV data found for this ticker.")
-    else:
-        data = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-        dataset = data.values
-
-        scaler = MinMaxScaler()
-        scaled_data = scaler.fit_transform(dataset)
-
-        x_train, y_train = [], []
-        for i in range(60, len(scaled_data)):
-            x_train.append(scaled_data[i-60:i])
-            y_train.append(scaled_data[i, 3])  # 'Close' column
-
-        x_train, y_train = np.array(x_train), np.array(y_train)
-
-        @st.cache_resource
-        def train_lstm_model(x_train, y_train, input_shape):
-            model = Sequential()
-            model.add(LSTM(50, return_sequences=True, input_shape=input_shape))
-            model.add(LSTM(50))
-            model.add(Dense(25))
-            model.add(Dense(1))
-
-            model.compile(optimizer='adam', loss='mean_squared_error')
-            model.fit(x_train, y_train, epochs=30, batch_size=32, validation_split=0.1, verbose=0)
-            return model
-
-        # Cache and retrieve model
-        model = train_lstm_model(x_train, y_train, (x_train.shape[1], x_train.shape[2]))
-
-        last_60_days = scaled_data[-60:]
-        X_test = np.array([last_60_days])
-        predicted_close_scaled = model.predict(X_test)
-
-        dummy_row = last_60_days[-1].copy()
-        dummy_row[3] = predicted_close_scaled[0][0]  # Replace scaled 'Close'
-        predicted_full = scaler.inverse_transform([dummy_row])
-        predicted_price = predicted_full[0][3]
-
-    st.success(f"**Predicted Closing Price for Next Day:** ${predicted_price:.2f}")
+st.markdown("</div></div>", unsafe_allow_html=True)
