@@ -195,7 +195,7 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
     if st.button("Explore →", key="market"):
-        st.switch_page("pages/2_news_summary.py")
+        st.warning("Please use the sidebar to navigate to '📰 News and AI Summary'")
 
 with col2:
     st.markdown("""
@@ -205,7 +205,7 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
     if st.button("Explore →", key="snapshot"):
-        st.switch_page("pages/1_company_info.py")
+        st.warning("Please use the sidebar to navigate to '📊 Financial Snapshot'")
 
 with col3:
     st.markdown("""
@@ -215,7 +215,7 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
     if st.button("Explore →", key="forecast"):
-        st.switch_page("pages/4_lstm_model.py")
+        st.warning("Please use the sidebar to navigate to '🔮 AI Price Forecast'")
 
 with col4:
     st.markdown("""
@@ -225,6 +225,7 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
     if st.button("Explore →", key="charting"):
-        st.switch_page("pages/3_Historical_Chart.py")
+        st.warning("Please use the sidebar to navigate to '📈 Interactive Charting'")
+
 
 st.markdown("</div></div>", unsafe_allow_html=True)
