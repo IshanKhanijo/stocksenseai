@@ -1,14 +1,17 @@
 import streamlit as st
-import yfinance as yf
 from datetime import datetime
+from alpha_vantage.fundamentaldata import FundamentalData
+from dotenv import load_dotenv
+import os
 
-# Page Setup
+# Load .env if running locally
+load_dotenv()
+api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+
+fd = FundamentalData(key=api_key, output_format='json')
+
 st.set_page_config(page_title="📊 Company Snapshot", layout="wide")
 
-# --------------------------
-# Fill the Phantom Container
-# --------------------------
-# This is the top-most Streamlit auto container; we use it deliberately now:
 with st.container():
     st.markdown("""
         <div style='
@@ -23,13 +26,10 @@ with st.container():
             margin-top: 1.5rem;
             margin-bottom: -1.5rem;
         '>
-            🔍 Powered by Yahoo Finance API | <strong>{date}</strong>
+            🔍 Powered by Alpha Vantage API | <strong>{date}</strong>
         </div>
     """.format(date=datetime.today().strftime('%A, %d %B %Y')), unsafe_allow_html=True)
 
-# --------------------------
-# CSS + Main Block
-# --------------------------
 with st.container():
     st.markdown("""
     <style>
@@ -111,26 +111,29 @@ with st.container():
     ticker = st.text_input("Enter Stock Ticker", value="AAPL").upper()
 
     if ticker:
-        stock = yf.Ticker(ticker)
-        info = stock.info
+        try:
+            data, _ = fd.get_company_overview(ticker)
+        except Exception as e:
+            st.error("❌ Failed to fetch data from Alpha Vantage.")
+            st.stop()
 
         st.markdown('<div class="section-title">Key Financial Metrics</div>', unsafe_allow_html=True)
 
         metrics = [
             {
-                "Company": info.get("longName", "N/A"),
-                "Sector": info.get("sector", "N/A"),
-                "Market Cap": f'{info.get("marketCap", "N/A"):,}' if info.get("marketCap") else "N/A"
+                "Company": data.get("Name", "N/A"),
+                "Sector": data.get("Sector", "N/A"),
+                "Market Cap": data.get("MarketCapitalization", "N/A")
             },
             {
-                "PE Ratio": info.get("trailingPE", "N/A"),
-                "EPS": info.get("trailingEps", "N/A"),
-                "Dividend Yield": info.get("dividendYield", "N/A")
+                "PE Ratio": data.get("PERatio", "N/A"),
+                "EPS": data.get("EPS", "N/A"),
+                "Dividend Yield": data.get("DividendYield", "N/A")
             },
             {
-                "ROE": info.get("returnOnEquity", "N/A"),
-                "Beta": info.get("beta", "N/A"),
-                "Currency": info.get("currency", "USD")
+                "ROE": data.get("ReturnOnEquityTTM", "N/A"),
+                "Beta": data.get("Beta", "N/A"),
+                "Currency": data.get("Currency", "USD")
             }
         ]
 
