@@ -236,4 +236,3 @@ This project uses a next-day closing price forecast to demonstrate an applied de
 - Market/news data providers used by the app (as configured in your code)
 
 ---
-```
